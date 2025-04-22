@@ -1,5 +1,5 @@
 // src/app/page.tsx
-import LoginButton from "lib/components/loginButton"; 
+import LoginButton from "components/loginButton"; 
 
 const HomePage: React.FC = () => {
   return (
