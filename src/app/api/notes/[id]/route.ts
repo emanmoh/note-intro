@@ -4,8 +4,10 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;  
   const { id } = params;
+
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -16,7 +18,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   const { title, content, isPublic } = body;
 
   try {
-    // Tjek ejerskab
+    // Tjek 
     const note = await prisma.note.findUnique({ where: { id: Number(id) } });
 
     if (!note || note.userId !== session.user.id) {
@@ -35,8 +37,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;   // await params
   const { id } = params;
+
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -58,5 +62,35 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   } catch (error) {
     console.error("Error deleting note:", error);
     return NextResponse.json({ error: "Error deleting note" }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const params = await context.params;  
+  const { id } = params;
+
+  const session = await getServerSession(authOptions);
+  
+  try {
+    const note = await prisma.note.findUnique({
+      where: { id: Number(id) },
+      include: { user: true },
+    });
+
+    if (!note) {
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
+
+    const isOwner = session?.user?.id === note.userId;
+    const isPublic = note.isPublic;
+
+    if (!isPublic && !isOwner) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+ return NextResponse.json(note);
+  } catch (error) {
+    console.error("Error fetching note:", error);
+    return NextResponse.json({ error: "Error fetching note" }, { status: 500 });
   }
 }
